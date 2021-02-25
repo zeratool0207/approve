@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mappers.apprMapper">
+	
+	<resultMap type="map" id="loginRs">
+		<result property="memId" column="MEM_ID"/>
+		<result property="memPass" column="MEM_PASS"/>
+		<result property="memName" column="MEM_NAME"/>
+		<result property="memRank" column="MEM_RANK"/>
+		<result property="memRankKor" column="MEM_RANK_KOR"/>
+	</resultMap>
+	
+	<resultMap type="map" id="apprListRs">
+		<result property="seq" column="SEQ"/>
+		<result property="writeId" column="WRITE_ID"/>
+		<result property="writeName" column="WRITE_NAME"/>
+		<result property="apprSubject" column="APPR_SUBJECT"/>
+		<result property="apprContent" column="APPR_CONTENT"/>
+		<result property="apprStatus" column="APPR_STATUS"/>
+		<result property="apprRegDate" column="APPR_REG_DATE"/>
+		<result property="apprDate" column="APPR_DATE"/>
+		<result property="apprApper" column="APPR_APPER"/>
+		<result property="apprStatusKor" column="APPR_STATUS_KOR"/>	
+		<result property="apperName" column="APPER_NAME"/>
+	</resultMap>
+	
+	<resultMap type="map" id="historyRs">
+		<result property="hisSeq" column="HIS_SEQ"/>
+		<result property="apprSeq" column="APPR_SEQ"/>
+		<result property="hisAppDate" column="HIST_APP_DATE"/>
+		<result property="hisApper" column="HIST_APPER"/>
+		<result property="hisApperName" column="HIST_APPER_NAME"/>
+		<result property="hisStatus" column="HIST_STATUS"/>
+		<result property="hisStatusKor" column="HIST_STATUS_KOR"/>
+	</resultMap>
+
+	<select id="detail" resultMap="loginRs" parameterType="String">
+		SELECT
+				MEM_ID
+				,MEM_PASS
+				,MEM_NAME
+				,MEM_RANK
+				,decode(MEM_RANK, 'sa','사원','da','대리','ga','과장','ba','부장') MEM_RANK_KOR
+			FROM STUDY_APPROVAL_MEMBER
+			WHERE MEM_ID = #{MEM_ID}	
+	</select>
+	
+	<select id="apprList" resultMap="apprListRs" parameterType="map">
+		SELECT
+				SEQ
+				,WRITE_ID
+				,(select MEM_NAME from STUDY_APPROVAL_MEMBER sam where sam.mem_id = sal.write_id) WRITE_NAME
+				,APPR_SUBJECT
+				,APPR_STATUS
+				,decode(APPR_STATUS, 'tmp','임시저장','wat','결제대기','ing','결재중','end','결재완료','ret','반려') APPR_STATUS_KOR
+				,APPR_REG_DATE
+				,APPR_DATE
+				,APPR_APPER
+				,(select MEM_NAME from STUDY_APPROVAL_MEMBER sam where sam.mem_id = sal.APPR_APPER) APPER_NAME
+			FROM STUDY_APPROVAL_LIST sal
+			WHERE 1=1
+			<choose>
+				<when test="memInfo.memRank == 'sa'">
+			and WRITE_ID = #{memInfo.memId}
+			</when>
+			<when test="memInfo.memRank == 'da'">
+			and WRITE_ID = #{memInfo.memId}
+			</when>
+			<when test="memInfo.memRank == 'ga'">
+			and (
+              WRITE_ID = #{memInfo.memId}
+              or APPR_STATUS = 'wat'
+              or seq in (
+		                  select 
+		                    appr_seq 
+		                  from ( 
+		                      select 
+		                          appr_seq
+		                          ,rank() over(PARTITION BY appr_Seq order by his_seq desc) rk 
+		                      from study_approval_history 
+		                      where hist_apper = #{memInfo.memId}
+		                      ) 
+		                   where rk in (1,2)
+             		 )
+			)
+			</when>
+			<when test="memInfo.memRank == 'ba'">
+			and (WRITE_ID = #{memInfo.memId} or (APPR_APPER = #{memInfo.memId} or APPR_STATUS = 'ing'))
+			</when>
+			<!-- search 부분만 남음 -->
+			
+			
+			
+			
+			
+			</choose>
+	
+	</select>
+	
+	
+
+
+
+</mapper>
